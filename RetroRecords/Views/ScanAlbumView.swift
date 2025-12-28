@@ -19,6 +19,7 @@ struct ScanAlbumView: View {
     @State private var searchQuery = ""
     @State private var showingResults = false
     @State private var showingAddSheet = false
+    @State private var showingSearchSheet = false
     @State private var errorMessage: String?
     @State private var selectedResult: DiscogsSearchResult?
     @State private var isLoadingDetails = false
@@ -46,13 +47,16 @@ struct ScanAlbumView: View {
                     loadingOverlay
                 }
             }
-            .navigationTitle("Scan")
+            .navigationTitle("Add Album")
             .sheet(isPresented: $showingCamera) {
                 CameraView(capturedImage: $capturedImage)
                     .ignoresSafeArea()
             }
             .sheet(isPresented: $showingAddSheet) {
                 AddAlbumView()
+            }
+            .sheet(isPresented: $showingSearchSheet) {
+                SearchAlbumView()
             }
             .onChange(of: capturedImage) { _, newImage in
                 if let image = newImage {
@@ -65,58 +69,107 @@ struct ScanAlbumView: View {
     // MARK: - Scan Prompt Section
 
     private var scanPromptSection: some View {
-        VStack(spacing: 30) {
-            Spacer(minLength: 40)
-
-            // Camera icon
-            ZStack {
-                Circle()
-                    .fill(RetroTheme.adaptiveCardBackground(for: colorScheme))
-                    .frame(width: 160, height: 160)
-                    .shadow(color: RetroTheme.cardShadow(for: colorScheme), radius: 10, x: 0, y: 5)
-
-                Image(systemName: "camera.viewfinder")
-                    .font(.system(size: 70))
-                    .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme))
-            }
-
-            VStack(spacing: 12) {
-                Text("Scan Album Cover")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(RetroTheme.adaptiveTextPrimary(for: colorScheme))
-
-                Text("Point your camera at an album cover\nto automatically find it on Discogs")
-                    .font(.subheadline)
-                    .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
-                    .multilineTextAlignment(.center)
-            }
-
-            // Scan button
-            Button {
-                showingCamera = true
-            } label: {
-                HStack {
-                    Image(systemName: "camera.fill")
-                    Text("Open Camera")
-                }
-            }
-            .buttonStyle(PrimaryButtonStyle())
-
+        VStack(spacing: 24) {
             Spacer(minLength: 20)
+
+            Text("Add to Collection")
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(RetroTheme.adaptiveTextPrimary(for: colorScheme))
+
+            // Two main options: Scan and Search
+            HStack(spacing: 16) {
+                // Scan option
+                Button {
+                    showingCamera = true
+                } label: {
+                    VStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(RetroTheme.adaptiveAccent(for: colorScheme).opacity(0.15))
+                                .frame(width: 80, height: 80)
+
+                            Image(systemName: "camera.viewfinder")
+                                .font(.system(size: 36))
+                                .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme))
+                        }
+
+                        Text("Scan Cover")
+                            .font(.headline)
+                            .foregroundColor(RetroTheme.adaptiveTextPrimary(for: colorScheme))
+
+                        Text("Take a photo of\nthe album cover")
+                            .font(.caption)
+                            .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                    .background(RetroTheme.adaptiveCardBackground(for: colorScheme))
+                    .cornerRadius(16)
+                    .shadow(color: RetroTheme.cardShadow(for: colorScheme), radius: 6, x: 0, y: 3)
+                }
+                .buttonStyle(.plain)
+
+                // Search option
+                Button {
+                    showingSearchSheet = true
+                } label: {
+                    VStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(RetroTheme.mustard.opacity(0.15))
+                                .frame(width: 80, height: 80)
+
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 36))
+                                .foregroundColor(RetroTheme.mustard)
+                        }
+
+                        Text("Search")
+                            .font(.headline)
+                            .foregroundColor(RetroTheme.adaptiveTextPrimary(for: colorScheme))
+
+                        Text("Find by artist\nor album name")
+                            .font(.caption)
+                            .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                    .background(RetroTheme.adaptiveCardBackground(for: colorScheme))
+                    .cornerRadius(16)
+                    .shadow(color: RetroTheme.cardShadow(for: colorScheme), radius: 6, x: 0, y: 3)
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Divider
+            HStack {
+                Rectangle()
+                    .fill(RetroTheme.adaptiveTextSecondary(for: colorScheme).opacity(0.3))
+                    .frame(height: 1)
+                Text("or")
+                    .font(.caption)
+                    .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
+                Rectangle()
+                    .fill(RetroTheme.adaptiveTextSecondary(for: colorScheme).opacity(0.3))
+                    .frame(height: 1)
+            }
+            .padding(.vertical, 8)
 
             // Manual add option
             Button {
                 showingAddSheet = true
             } label: {
                 HStack {
-                    Image(systemName: "plus.circle")
-                    Text("Add Manually Instead")
+                    Image(systemName: "pencil.line")
+                    Text("Add Manually")
                 }
             }
             .buttonStyle(SecondaryButtonStyle())
 
-            Spacer(minLength: 40)
+            Spacer(minLength: 20)
         }
     }
 
