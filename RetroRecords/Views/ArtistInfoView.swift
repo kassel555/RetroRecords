@@ -17,6 +17,8 @@ struct ArtistInfoView: View {
     @State private var errorMessage: String?
     @State private var showingAPIKeyPrompt = false
     @State private var apiKeyInput = ""
+    @State private var chartEntries: [BillboardEntry] = []
+    @State private var isLoadingChart = false
 
     var body: some View {
         NavigationStack {
@@ -54,6 +56,7 @@ struct ArtistInfoView: View {
         }
         .onAppear {
             fetchArtistInfo()
+            fetchChartData()
         }
     }
 
@@ -138,6 +141,11 @@ struct ArtistInfoView: View {
                 // Similar Artists
                 if !artist.similarArtistNames.isEmpty {
                     similarArtistsSection(artist)
+                }
+
+                // Billboard Chart
+                if !chartEntries.isEmpty || isLoadingChart {
+                    billboardSection
                 }
 
                 // Last.fm link
@@ -328,6 +336,108 @@ struct ArtistInfoView: View {
         .shadow(color: RetroTheme.cardShadow(for: colorScheme), radius: 6, x: 0, y: 3)
     }
 
+    // MARK: - Billboard Section
+
+    private var billboardSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme))
+                Text("Billboard Hot 100")
+                    .font(.headline)
+                    .foregroundColor(RetroTheme.adaptiveTextPrimary(for: colorScheme))
+            }
+
+            if isLoadingChart {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Loading chart data...")
+                        .font(.caption)
+                        .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
+                }
+                .padding(.vertical, 8)
+            } else if chartEntries.isEmpty {
+                Text("No songs currently on the Hot 100")
+                    .font(.subheadline)
+                    .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
+                    .padding(.vertical, 8)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(chartEntries) { entry in
+                        chartEntryRow(entry)
+                    }
+                }
+            }
+
+            Text("Data from Billboard Hot 100")
+                .font(.caption2)
+                .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme).opacity(0.7))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(RetroTheme.adaptiveCardBackground(for: colorScheme))
+        .cornerRadius(16)
+        .shadow(color: RetroTheme.cardShadow(for: colorScheme), radius: 6, x: 0, y: 3)
+    }
+
+    private func chartEntryRow(_ entry: BillboardEntry) -> some View {
+        HStack(spacing: 12) {
+            // Position badge
+            Text(entry.formattedPosition)
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+                .frame(width: 44, height: 44)
+                .background(RetroTheme.adaptiveAccent(for: colorScheme))
+                .cornerRadius(8)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(entry.song)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(RetroTheme.adaptiveTextPrimary(for: colorScheme))
+                    .lineLimit(1)
+
+                HStack(spacing: 12) {
+                    // Peak position
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.to.line")
+                            .font(.caption2)
+                        Text(entry.formattedPeak)
+                            .font(.caption)
+                    }
+                    .foregroundColor(RetroTheme.mustard)
+
+                    // Weeks on chart
+                    HStack(spacing: 4) {
+                        Image(systemName: "calendar")
+                            .font(.caption2)
+                        Text(entry.formattedWeeks)
+                            .font(.caption)
+                    }
+                    .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
+                }
+            }
+
+            Spacer()
+
+            // Position change indicator
+            Text(entry.positionChange)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(
+                    entry.positionChangeColor == "up" ? RetroTheme.avocado :
+                    entry.positionChangeColor == "down" ? RetroTheme.rust :
+                    entry.positionChangeColor == "new" ? RetroTheme.mustard :
+                    RetroTheme.adaptiveTextSecondary(for: colorScheme)
+                )
+        }
+        .padding(10)
+        .background(RetroTheme.adaptiveCardBackground(for: colorScheme).opacity(0.5))
+        .cornerRadius(10)
+    }
+
     // MARK: - Fetch Artist Info
 
     private func fetchArtistInfo() {
@@ -342,6 +452,24 @@ struct ArtistInfoView: View {
                 artistInfo = artist
             case .failure(let error):
                 errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    // MARK: - Fetch Chart Data
+
+    private func fetchChartData() {
+        isLoadingChart = true
+
+        BillboardService.shared.findArtistSongs(artistName: artistName) { result in
+            isLoadingChart = false
+
+            switch result {
+            case .success(let entries):
+                chartEntries = entries
+            case .failure:
+                // Silently fail - chart data is supplementary
+                chartEntries = []
             }
         }
     }
