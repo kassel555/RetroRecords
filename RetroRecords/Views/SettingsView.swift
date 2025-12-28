@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var store: RecordStore
+    @EnvironmentObject var userManager: UserManager
     @Environment(\.colorScheme) var colorScheme
     @AppStorage("isDarkMode") private var isDarkMode = false
 
@@ -19,6 +20,9 @@ struct SettingsView: View {
 
                 ScrollView {
                     VStack(spacing: 20) {
+                        // Current user
+                        userSection
+
                         // Appearance
                         appearanceSection
 
@@ -33,6 +37,57 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
         }
+    }
+
+    // MARK: - User Section
+
+    private var userSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("User")
+                .font(.headline)
+                .foregroundColor(RetroTheme.adaptiveTextPrimary(for: colorScheme))
+
+            if let user = userManager.currentUser {
+                HStack {
+                    Text(user.avatarEmoji)
+                        .font(.largeTitle)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(user.name)
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                            .foregroundColor(RetroTheme.adaptiveTextPrimary(for: colorScheme))
+
+                        Text("Collecting since \(user.dateCreated, format: .dateTime.month().year())")
+                            .font(.caption)
+                            .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
+                    }
+
+                    Spacer()
+                }
+
+                Divider()
+
+                Button {
+                    userManager.logout()
+                } label: {
+                    HStack {
+                        Image(systemName: "person.crop.circle.badge.xmark")
+                            .foregroundColor(RetroTheme.rust)
+                        Text("Switch User")
+                            .foregroundColor(RetroTheme.rust)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(RetroTheme.adaptiveCardBackground(for: colorScheme))
+        .cornerRadius(16)
+        .shadow(color: RetroTheme.cardShadow(for: colorScheme), radius: 6, x: 0, y: 3)
     }
 
     // MARK: - Appearance Section
@@ -216,4 +271,5 @@ struct FlowLayout: Layout {
 #Preview {
     SettingsView()
         .environmentObject(RecordStore())
+        .environmentObject(UserManager.shared)
 }

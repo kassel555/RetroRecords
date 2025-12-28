@@ -2,7 +2,7 @@
 //  RecordStore.swift
 //  RetroRecords
 //
-//  Main state container with JSON persistence
+//  Main state container with JSON persistence (per-user)
 //
 
 import Foundation
@@ -14,11 +14,29 @@ class RecordStore: ObservableObject {
     @Published var sortOption: SortOption = .dateAdded
     @Published var filterGenre: String? = nil
 
-    private let albumsFileName = "albums.json"
+    private var userId: UUID?
+
+    private var albumsFileName: String {
+        guard let userId = userId else { return "albums.json" }
+        return "albums_\(userId.uuidString).json"
+    }
 
     // MARK: - Initialization
 
-    init() {
+    init(userId: UUID? = nil) {
+        self.userId = userId
+        if userId != nil {
+            loadAlbums()
+        }
+    }
+
+    // MARK: - User Switching
+
+    func switchUser(to userId: UUID) {
+        self.userId = userId
+        albums = []
+        searchText = ""
+        filterGenre = nil
         loadAlbums()
     }
 
@@ -108,7 +126,7 @@ class RecordStore: ObservableObject {
             encoder.dateEncodingStrategy = .iso8601
             let data = try encoder.encode(albums)
             try data.write(to: url, options: [.atomic, .completeFileProtection])
-            print("💾 Saved \(albums.count) albums")
+            print("💾 Saved \(albums.count) albums for user")
         } catch {
             print("❌ Failed to save albums: \(error)")
         }
@@ -118,10 +136,12 @@ class RecordStore: ObservableObject {
         let url = getDocumentsDirectory().appendingPathComponent(albumsFileName)
 
         guard FileManager.default.fileExists(atPath: url.path) else {
-            print("📁 No saved albums found, starting fresh")
+            print("📁 No saved albums found for user, starting fresh")
             #if DEBUG
-            // Load sample data in debug mode
-            albums = Album.sampleAlbums
+            // Load sample data in debug mode for first user only
+            if userId != nil {
+                albums = Album.sampleAlbums
+            }
             #endif
             return
         }
@@ -131,7 +151,7 @@ class RecordStore: ObservableObject {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             albums = try decoder.decode([Album].self, from: data)
-            print("📂 Loaded \(albums.count) albums")
+            print("📂 Loaded \(albums.count) albums for user")
         } catch {
             print("❌ Failed to load albums: \(error)")
             albums = []
