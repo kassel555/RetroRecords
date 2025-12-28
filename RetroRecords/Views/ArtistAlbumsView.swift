@@ -17,6 +17,7 @@ struct ArtistAlbumsView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var isAddingAlbum = false
+    @State private var showingArtistInfo = false
 
     // Track which albums are already in collection
     private var ownedAlbumTitles: Set<String> {
@@ -49,6 +50,18 @@ struct ArtistAlbumsView: View {
                     }
                     .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme))
                 }
+
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingArtistInfo = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme))
+                }
+            }
+            .sheet(isPresented: $showingArtistInfo) {
+                ArtistInfoView(artistName: artistName)
             }
         }
         .onAppear {

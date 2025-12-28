@@ -12,6 +12,8 @@ struct SettingsView: View {
     @EnvironmentObject var userManager: UserManager
     @Environment(\.colorScheme) var colorScheme
     @AppStorage("isDarkMode") private var isDarkMode = false
+    @State private var lastfmAPIKey: String = ""
+    @State private var showingAPIKeyAlert = false
 
     var body: some View {
         NavigationStack {
@@ -26,6 +28,9 @@ struct SettingsView: View {
                         // Appearance
                         appearanceSection
 
+                        // API Settings
+                        apiSection
+
                         // Collection stats
                         statsSection
 
@@ -33,6 +38,18 @@ struct SettingsView: View {
                         aboutSection
                     }
                     .padding()
+                }
+                .onAppear {
+                    lastfmAPIKey = UserDefaults.standard.string(forKey: "lastfm_api_key") ?? ""
+                }
+                .alert("Last.fm API Key", isPresented: $showingAPIKeyAlert) {
+                    TextField("API Key", text: $lastfmAPIKey)
+                    Button("Save") {
+                        LastFMService.shared.setAPIKey(lastfmAPIKey)
+                    }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("Get a free API key at last.fm/api/account/create")
                 }
             }
             .navigationTitle("Settings")
@@ -116,6 +133,63 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
             }
+        }
+        .padding()
+        .background(RetroTheme.adaptiveCardBackground(for: colorScheme))
+        .cornerRadius(16)
+        .shadow(color: RetroTheme.cardShadow(for: colorScheme), radius: 6, x: 0, y: 3)
+    }
+
+    // MARK: - API Section
+
+    private var apiSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Artist Information")
+                .font(.headline)
+                .foregroundColor(RetroTheme.adaptiveTextPrimary(for: colorScheme))
+
+            HStack {
+                Image(systemName: "music.mic")
+                    .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme))
+                Text("Last.fm API")
+                    .foregroundColor(RetroTheme.adaptiveTextPrimary(for: colorScheme))
+                Spacer()
+
+                if LastFMService.shared.hasValidAPIKey() {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(RetroTheme.avocado)
+                        Text("Connected")
+                            .font(.caption)
+                            .foregroundColor(RetroTheme.avocado)
+                    }
+                } else {
+                    Text("Not configured")
+                        .font(.caption)
+                        .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
+                }
+            }
+
+            Button {
+                showingAPIKeyAlert = true
+            } label: {
+                HStack {
+                    Image(systemName: "key")
+                    Text(LastFMService.shared.hasValidAPIKey() ? "Update API Key" : "Add API Key")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                }
+                .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme))
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: "info.circle")
+                    .font(.caption)
+                Text("Required for artist biographies and similar artists")
+                    .font(.caption)
+            }
+            .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
         }
         .padding()
         .background(RetroTheme.adaptiveCardBackground(for: colorScheme))
