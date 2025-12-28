@@ -24,6 +24,7 @@ struct Album: Identifiable, Codable {
     var notes: String
     var dateAdded: Date
     var discogsId: Int?
+    var userRating: Int? // 1-5 star rating
 
     init(
         id: UUID = UUID(),
@@ -39,7 +40,8 @@ struct Album: Identifiable, Codable {
         condition: Condition = .veryGood,
         notes: String = "",
         dateAdded: Date = Date(),
-        discogsId: Int? = nil
+        discogsId: Int? = nil,
+        userRating: Int? = nil
     ) {
         self.id = id
         self.title = title
@@ -55,6 +57,7 @@ struct Album: Identifiable, Codable {
         self.notes = notes
         self.dateAdded = dateAdded
         self.discogsId = discogsId
+        self.userRating = userRating
     }
 }
 

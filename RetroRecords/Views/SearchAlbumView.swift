@@ -279,26 +279,47 @@ struct SearchAlbumView: View {
     private func selectResult(_ result: MusicSearchResult) {
         isLoadingDetails = true
 
+        let collectionId = result.collectionId ?? 0
+
+        // Fetch tracks and cover image in parallel
+        var fetchedTracks: [Track] = []
+        var fetchedCoverData: Data? = nil
+        let group = DispatchGroup()
+
+        // Fetch tracks
+        group.enter()
+        MusicSearchService.shared.fetchTracks(collectionId: collectionId) { trackResult in
+            switch trackResult {
+            case .success(let tracks):
+                fetchedTracks = tracks
+            case .failure(let error):
+                print("Failed to fetch tracks: \(error)")
+            }
+            group.leave()
+        }
+
         // Download cover image
         if let artworkURL = result.highResArtworkURL {
+            group.enter()
             MusicSearchService.shared.downloadCoverImage(from: artworkURL) { imageResult in
-                isLoadingDetails = false
-
-                let coverData: Data?
                 switch imageResult {
                 case .success(let data):
-                    coverData = data
+                    fetchedCoverData = data
                 case .failure:
-                    coverData = nil
+                    break
                 }
-
-                let album = MusicSearchService.shared.convertToAlbum(from: result, coverImageData: coverData)
-                store.addAlbum(album)
-                dismiss()
+                group.leave()
             }
-        } else {
+        }
+
+        // When both complete, create and add album
+        group.notify(queue: .main) {
             isLoadingDetails = false
-            let album = MusicSearchService.shared.convertToAlbum(from: result, coverImageData: nil)
+            let album = MusicSearchService.shared.convertToAlbum(
+                from: result,
+                coverImageData: fetchedCoverData,
+                tracks: fetchedTracks
+            )
             store.addAlbum(album)
             dismiss()
         }

@@ -71,6 +71,8 @@ class RecordStore: ObservableObject {
             result.sort { ($0.releaseYear ?? 0) > ($1.releaseYear ?? 0) }
         case .condition:
             result.sort { $0.condition.sortOrder < $1.condition.sortOrder }
+        case .rating:
+            result.sort { ($0.userRating ?? 0) > ($1.userRating ?? 0) }
         }
 
         return result
@@ -111,6 +113,13 @@ class RecordStore: ObservableObject {
             albums.removeAll { $0.id == album.id }
         }
         saveAlbums()
+    }
+
+    func updateRating(for albumId: UUID, rating: Int?) {
+        if let index = albums.firstIndex(where: { $0.id == albumId }) {
+            albums[index].userRating = rating
+            saveAlbums()
+        }
     }
 
     // MARK: - Persistence
@@ -199,6 +208,7 @@ enum SortOption: String, CaseIterable, Identifiable {
     case title = "Title"
     case year = "Year"
     case condition = "Condition"
+    case rating = "Rating"
 
     var id: String { rawValue }
 
@@ -208,7 +218,8 @@ enum SortOption: String, CaseIterable, Identifiable {
         case .artist: return "person.fill"
         case .title: return "textformat"
         case .year: return "number"
-        case .condition: return "star.fill"
+        case .condition: return "sparkles"
+        case .rating: return "star.fill"
         }
     }
 }

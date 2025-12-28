@@ -13,6 +13,12 @@ struct AlbumDetailView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
     @State private var showingDeleteAlert = false
+    @State private var showingArtistAlbums = false
+
+    // Get current album from store (for live updates)
+    private var currentAlbum: Album {
+        store.albums.first { $0.id == album.id } ?? album
+    }
 
     var body: some View {
         NavigationStack {
@@ -63,42 +69,31 @@ struct AlbumDetailView: View {
             } message: {
                 Text("Are you sure you want to remove \"\(album.title)\" from your collection?")
             }
+            .sheet(isPresented: $showingArtistAlbums) {
+                ArtistAlbumsView(artistName: album.artist)
+            }
         }
     }
 
-    // MARK: - Cover Section
+    // MARK: - Cover Section (Flippable)
 
     private var coverSection: some View {
-        ZStack {
-            // Vinyl peek effect
-            Circle()
-                .fill(RetroTheme.vinyl)
-                .frame(width: 200, height: 200)
-                .offset(x: 40, y: 0)
-                .shadow(color: Color.black.opacity(0.3), radius: 10, x: 5, y: 5)
+        VStack(spacing: 8) {
+            // Flippable album card
+            FlippableAlbumCard(
+                album: album,
+                size: 280,
+                colorScheme: colorScheme
+            )
 
-            // Album cover
-            if let imageData = album.coverImageData,
-               let uiImage = UIImage(data: imageData) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .aspectRatio(1, contentMode: .fill)
-                    .frame(width: 220, height: 220)
-                    .cornerRadius(4)
-                    .shadow(color: RetroTheme.cardShadow(for: colorScheme), radius: 10, x: 0, y: 5)
-            } else {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(RetroTheme.parchment)
-                    .frame(width: 220, height: 220)
-                    .overlay(
-                        Image(systemName: "opticaldisc.fill")
-                            .font(.system(size: 80))
-                            .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme).opacity(0.5))
-                    )
-                    .shadow(color: RetroTheme.cardShadow(for: colorScheme), radius: 10, x: 0, y: 5)
+            // Hint text
+            if !album.trackList.isEmpty {
+                Text("Tap album to flip and see tracks")
+                    .font(.caption2)
+                    .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
             }
         }
-        .padding(.vertical, 20)
+        .padding(.vertical, 12)
     }
 
     // MARK: - Info Section
@@ -113,9 +108,34 @@ struct AlbumDetailView: View {
                     .foregroundColor(RetroTheme.adaptiveTextPrimary(for: colorScheme))
                     .multilineTextAlignment(.center)
 
-                Text(album.artist)
-                    .font(.title3)
+                // Tappable artist name
+                Button {
+                    showingArtistAlbums = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(album.artist)
+                            .font(.title3)
+                            .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme))
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme).opacity(0.7))
+                    }
+                }
+            }
+
+            // User rating
+            VStack(spacing: 6) {
+                Text("Your Rating")
+                    .font(.caption)
                     .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
+
+                StarRatingView(
+                    rating: currentAlbum.userRating,
+                    colorScheme: colorScheme
+                ) { newRating in
+                    store.updateRating(for: album.id, rating: newRating)
+                }
             }
 
             // Details row

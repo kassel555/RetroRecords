@@ -25,6 +25,27 @@ class MusicSearchService {
         let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
         let urlString = "\(baseURL)?term=\(encodedQuery)&media=music&entity=album&limit=20"
 
+        fetchAlbums(from: urlString, completion: completion)
+    }
+
+    // MARK: - Search Albums by Artist
+
+    func searchAlbumsByArtist(artistName: String, completion: @escaping (Result<[MusicSearchResult], Error>) -> Void) {
+        guard !artistName.trimmingCharacters(in: .whitespaces).isEmpty else {
+            completion(.success([]))
+            return
+        }
+
+        let encodedArtist = artistName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? artistName
+        let urlString = "\(baseURL)?term=\(encodedArtist)&media=music&entity=album&attribute=artistTerm&limit=50"
+
+        fetchAlbums(from: urlString, completion: completion)
+    }
+
+    // MARK: - Fetch Albums (shared)
+
+    private func fetchAlbums(from urlString: String, completion: @escaping (Result<[MusicSearchResult], Error>) -> Void) {
+
         guard let url = URL(string: urlString) else {
             completion(.failure(MusicSearchError.invalidURL))
             return
@@ -52,6 +73,71 @@ class MusicSearchService {
                 }
             } catch {
                 print("iTunes decode error: \(error)")
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
+        }.resume()
+    }
+
+    // MARK: - Fetch Tracks for Album
+
+    func fetchTracks(collectionId: Int, completion: @escaping (Result<[Track], Error>) -> Void) {
+        let urlString = "https://itunes.apple.com/lookup?id=\(collectionId)&entity=song"
+
+        guard let url = URL(string: urlString) else {
+            completion(.failure(MusicSearchError.invalidURL))
+            return
+        }
+
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+                return
+            }
+
+            guard let data = data else {
+                DispatchQueue.main.async {
+                    completion(.failure(MusicSearchError.noData))
+                }
+                return
+            }
+
+            do {
+                let lookupResponse = try JSONDecoder().decode(iTunesLookupResponse.self, from: data)
+                // Filter to only track results (skip the first collection result)
+                let trackResults = lookupResponse.results.filter { $0.wrapperType == "track" }
+
+                let tracks = trackResults.map { result -> Track in
+                    // Convert track number to vinyl-style position (1-6 = A1-A6, 7+ = B1-Bx)
+                    let trackNum = result.trackNumber ?? 0
+                    let side = trackNum <= 6 ? "A" : "B"
+                    let sideNum = trackNum <= 6 ? trackNum : trackNum - 6
+                    let position = "\(side)\(sideNum)"
+
+                    // Convert milliseconds to M:SS format
+                    var duration: String? = nil
+                    if let timeMs = result.trackTimeMillis {
+                        let totalSeconds = timeMs / 1000
+                        let minutes = totalSeconds / 60
+                        let seconds = totalSeconds % 60
+                        duration = String(format: "%d:%02d", minutes, seconds)
+                    }
+
+                    return Track(
+                        position: position,
+                        title: result.trackName ?? "Unknown Track",
+                        duration: duration
+                    )
+                }
+
+                DispatchQueue.main.async {
+                    completion(.success(tracks))
+                }
+            } catch {
+                print("iTunes lookup decode error: \(error)")
                 DispatchQueue.main.async {
                     completion(.failure(error))
                 }
@@ -93,7 +179,7 @@ class MusicSearchService {
 
     // MARK: - Convert to Album
 
-    func convertToAlbum(from result: MusicSearchResult, coverImageData: Data? = nil) -> Album {
+    func convertToAlbum(from result: MusicSearchResult, coverImageData: Data? = nil, tracks: [Track] = []) -> Album {
         // Extract year from release date
         var releaseYear: Int? = nil
         if let releaseDate = result.releaseDate {
@@ -112,7 +198,7 @@ class MusicSearchService {
             label: nil,
             catalogNumber: nil,
             genres: result.primaryGenreName != nil ? [result.primaryGenreName!] : [],
-            trackList: [],
+            trackList: tracks,
             coverImageData: coverImageData,
             coverImageURL: result.artworkUrl100?.replacingOccurrences(of: "100x100", with: "600x600"),
             condition: .veryGood,
@@ -172,4 +258,19 @@ struct MusicSearchResult: Codable, Identifiable {
     var highResArtworkURL: String? {
         artworkUrl100?.replacingOccurrences(of: "100x100", with: "600x600")
     }
+}
+
+// MARK: - iTunes Lookup Response (for fetching tracks)
+
+struct iTunesLookupResponse: Codable {
+    let resultCount: Int
+    let results: [iTunesLookupResult]
+}
+
+struct iTunesLookupResult: Codable {
+    let wrapperType: String?
+    let trackName: String?
+    let trackNumber: Int?
+    let trackTimeMillis: Int?
+    let discNumber: Int?
 }

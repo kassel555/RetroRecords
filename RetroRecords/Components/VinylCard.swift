@@ -90,8 +90,12 @@ struct VinylCard: View {
 
                     Spacer()
 
-                    Text(album.condition.emoji)
-                        .font(.caption)
+                    if album.userRating != nil {
+                        CompactStarRating(rating: album.userRating, colorScheme: colorScheme)
+                    } else {
+                        Text(album.condition.emoji)
+                            .font(.caption)
+                    }
                 }
             }
             .padding(12)
@@ -168,13 +172,17 @@ struct CompactVinylCard: View {
                             .foregroundColor(RetroTheme.mustard)
                     }
 
-                    Text(album.condition.rawValue)
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(RetroTheme.adaptiveAccent(for: colorScheme).opacity(0.2))
-                        .cornerRadius(4)
-                        .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme))
+                    if album.userRating != nil {
+                        CompactStarRating(rating: album.userRating, colorScheme: colorScheme)
+                    } else {
+                        Text(album.condition.rawValue)
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(RetroTheme.adaptiveAccent(for: colorScheme).opacity(0.2))
+                            .cornerRadius(4)
+                            .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme))
+                    }
                 }
             }
 
