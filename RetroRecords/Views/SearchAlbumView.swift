@@ -2,7 +2,7 @@
 //  SearchAlbumView.swift
 //  RetroRecords
 //
-//  Search for albums by artist name or album title
+//  Search for albums by artist name or album title using iTunes Search API
 //
 
 import SwiftUI
@@ -13,7 +13,7 @@ struct SearchAlbumView: View {
     @Environment(\.dismiss) var dismiss
 
     @State private var searchQuery = ""
-    @State private var searchResults: [DiscogsSearchResult] = []
+    @State private var searchResults: [MusicSearchResult] = []
     @State private var isSearching = false
     @State private var hasSearched = false
     @State private var errorMessage: String?
@@ -144,7 +144,7 @@ struct SearchAlbumView: View {
                     .fontWeight(.bold)
                     .foregroundColor(RetroTheme.adaptiveTextPrimary(for: colorScheme))
 
-                Text("Search by artist name, album title,\nor both to find records on Discogs")
+                Text("Search by artist name, album title,\nor both to find albums")
                     .font(.subheadline)
                     .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
                     .multilineTextAlignment(.center)
@@ -220,7 +220,7 @@ struct SearchAlbumView: View {
             }
 
             ForEach(searchResults) { result in
-                SearchResultRow(result: result, colorScheme: colorScheme) {
+                MusicResultRow(result: result, colorScheme: colorScheme) {
                     selectResult(result)
                 }
             }
@@ -259,7 +259,7 @@ struct SearchAlbumView: View {
         hasSearched = true
         errorMessage = nil
 
-        DiscogsService.shared.searchReleases(query: query) { result in
+        MusicSearchService.shared.searchAlbums(query: query) { result in
             isSearching = false
 
             switch result {
@@ -276,41 +276,103 @@ struct SearchAlbumView: View {
         }
     }
 
-    private func selectResult(_ result: DiscogsSearchResult) {
+    private func selectResult(_ result: MusicSearchResult) {
         isLoadingDetails = true
 
-        DiscogsService.shared.getReleaseDetails(id: result.id) { detailResult in
-            switch detailResult {
-            case .success(let release):
-                // Download cover image if available
-                if let imageURL = release.images?.first?.uri {
-                    DiscogsService.shared.downloadCoverImage(from: imageURL) { imageResult in
-                        isLoadingDetails = false
+        // Download cover image
+        if let artworkURL = result.highResArtworkURL {
+            MusicSearchService.shared.downloadCoverImage(from: artworkURL) { imageResult in
+                isLoadingDetails = false
 
-                        let coverData: Data?
-                        switch imageResult {
-                        case .success(let data):
-                            coverData = data
-                        case .failure:
-                            coverData = nil
-                        }
-
-                        let album = DiscogsService.shared.convertToAlbum(from: release, coverImageData: coverData)
-                        store.addAlbum(album)
-                        dismiss()
-                    }
-                } else {
-                    isLoadingDetails = false
-                    let album = DiscogsService.shared.convertToAlbum(from: release, coverImageData: nil)
-                    store.addAlbum(album)
-                    dismiss()
+                let coverData: Data?
+                switch imageResult {
+                case .success(let data):
+                    coverData = data
+                case .failure:
+                    coverData = nil
                 }
 
-            case .failure(let error):
-                isLoadingDetails = false
-                errorMessage = error.localizedDescription
+                let album = MusicSearchService.shared.convertToAlbum(from: result, coverImageData: coverData)
+                store.addAlbum(album)
+                dismiss()
             }
+        } else {
+            isLoadingDetails = false
+            let album = MusicSearchService.shared.convertToAlbum(from: result, coverImageData: nil)
+            store.addAlbum(album)
+            dismiss()
         }
+    }
+}
+
+// MARK: - Music Result Row
+
+struct MusicResultRow: View {
+    let result: MusicSearchResult
+    let colorScheme: ColorScheme
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 14) {
+                // Thumbnail
+                AsyncImage(url: URL(string: result.artworkUrl100 ?? "")) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    ZStack {
+                        Rectangle()
+                            .fill(RetroTheme.cork.opacity(0.3))
+                        Image(systemName: "opticaldisc")
+                            .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme))
+                    }
+                }
+                .frame(width: 60, height: 60)
+                .cornerRadius(6)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(result.displayTitle)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(RetroTheme.adaptiveTextPrimary(for: colorScheme))
+                        .lineLimit(2)
+
+                    Text(result.displayArtist)
+                        .font(.caption)
+                        .foregroundColor(RetroTheme.adaptiveTextSecondary(for: colorScheme))
+                        .lineLimit(1)
+
+                    HStack(spacing: 8) {
+                        if !result.displayYear.isEmpty {
+                            Text(result.displayYear)
+                                .font(.caption)
+                                .foregroundColor(RetroTheme.mustard)
+                        }
+
+                        if let genre = result.primaryGenreName {
+                            Text(genre)
+                                .font(.caption2)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(RetroTheme.adaptiveAccent(for: colorScheme).opacity(0.15))
+                                .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme))
+                                .cornerRadius(4)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "plus.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(RetroTheme.adaptiveAccent(for: colorScheme))
+            }
+            .padding(12)
+            .background(RetroTheme.adaptiveCardBackground(for: colorScheme).opacity(0.5))
+            .cornerRadius(12)
+        }
+        .buttonStyle(.plain)
     }
 }
 
