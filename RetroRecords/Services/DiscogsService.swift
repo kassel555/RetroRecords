@@ -53,11 +53,20 @@ class DiscogsService {
             do {
                 let searchResponse = try JSONDecoder().decode(DiscogsSearchResponse.self, from: data)
                 DispatchQueue.main.async {
-                    completion(.success(searchResponse.results))
+                    completion(.success(searchResponse.results ?? []))
                 }
             } catch {
-                DispatchQueue.main.async {
-                    completion(.failure(error))
+                // Try to parse error response
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let message = json["message"] as? String {
+                    DispatchQueue.main.async {
+                        completion(.failure(DiscogsError.apiError(message)))
+                    }
+                } else {
+                    print("Discogs decode error: \(error)")
+                    DispatchQueue.main.async {
+                        completion(.failure(error))
+                    }
                 }
             }
         }.resume()
@@ -167,12 +176,14 @@ class DiscogsService {
         case invalidURL
         case noData
         case rateLimited
+        case apiError(String)
 
         var errorDescription: String? {
             switch self {
             case .invalidURL: return "Invalid URL"
             case .noData: return "No data received"
             case .rateLimited: return "Too many requests. Please wait a moment."
+            case .apiError(let message): return message
             }
         }
     }
@@ -181,7 +192,7 @@ class DiscogsService {
 // MARK: - Discogs API Response Models
 
 struct DiscogsSearchResponse: Codable {
-    let results: [DiscogsSearchResult]
+    let results: [DiscogsSearchResult]?
 }
 
 struct DiscogsSearchResult: Codable, Identifiable {
