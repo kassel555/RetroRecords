@@ -1,0 +1,26 @@
+name: RetroRecords
+options:
+  bundleIdPrefix: com.retrorecords
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  DEVELOPMENT_TEAM: BAMVK6LBVP
+  CODE_SIGN_STYLE: Automatic
+  SWIFT_VERSION: "5.9"
+  INFOPLIST_KEY_NSCameraUsageDescription: "RetroRecords needs camera access to scan album covers"
+
+targets:
+  RetroRecords:
+    type: application
+    platform: iOS
+    sources:
+      - RetroRecords
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.retrorecords.app
+      GENERATE_INFOPLIST_FILE: YES
+      INFOPLIST_KEY_UILaunchScreen_Generation: true
+      INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
+      INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
